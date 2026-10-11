@@ -8,5 +8,13 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(glm CONFIG REQUIRED)
 
-add_executable(AchievementCase main.cpp Mesh.cpp)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+
+add_executable(AchievementCase ${SOURCES})
+
+target_include_directories(AchievementCase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_compile_definitions(AchievementCase PRIVATE
+  SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Shaders")
+
 target_link_libraries(AchievementCase PRIVATE OpenGL::GL glfw GLEW::GLEW glm::glm)

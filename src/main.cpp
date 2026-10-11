@@ -466,7 +466,7 @@ static void itemCat(Scene& s, const mat4& P)
 }
 
 // ---- Achievement 5: Career success (trophy) ------------------------------------
-static void itemTrophy(Scene& s, const mat4& P, float t)
+static void itemTrophy(Scene& s, const mat4& P)
 {
     Mesh *cyl = G.cyl.get(), *flare = G.flare.get(), *sph = G.sphere.get();
     Mesh *box = G.box.get(), *tor = G.torus.get(), *star = G.star.get();
@@ -481,13 +481,13 @@ static void itemTrophy(Scene& s, const mat4& P, float t)
     for (int i = -1; i <= 1; i += 2)
         s.add(tor, P, { 0.55f * i, 1.4f, 0 }, { 90, 0, 0 }, vec3(0.3f), gold, 96);          // handles
     s.add(box, P, { 0, 0.09f, 0.58f }, { 0, 0, 0 }, { 0.34f, 0.1f, 0.06f }, rgb(230, 170, 60), 64);  // plaque
-    s.add(star, P, { 0, 2.3f, 0 }, { 0, t * 60.0f, 0 }, vec3(0.38f), rgb(255, 238, 110), 96);       // spinning star
+    s.add(star, P, { 0, 2.3f, 0 }, { 0, 0, 0 }, vec3(0.38f), rgb(255, 238, 110), 96);       // spinning star
 }
 
 // ---------------------------------------------------------------------------
 // The whole display case
 // ---------------------------------------------------------------------------
-static void buildScene(Scene& s, float t)
+static void buildScene(Scene& s)
 {
     s.draws.clear();
     const mat4 I(1.0f);
@@ -518,7 +518,7 @@ static void buildScene(Scene& s, float t)
     {
         float cx = -6.0f + 1.2f + 2.4f * i;
         s.add(box, I, { cx, 0, 0.025f }, { 0, 0, 0 }, { 2.4f, 4.0f, 0.05f }, cell[i], 8);     // coloured back panel
-        s.add(star, I, { cx, 2.5f, 0.2f }, { 0, t * 70.0f + i * 40.0f, 0 }, vec3(0.33f), gold, 96);
+        s.add(star, I, { cx, 2.5f, 0.2f }, { 0, 0, 0 }, vec3(0.33f), gold, 96);
         s.add(cyl, I, { cx, -2.0f, 0.55f }, { 0, 0, 0 }, { 1.0f, 0.15f, 1.0f }, rgb(248, 240, 222), 16);   // pedestal
     }
     for (int i = 1; i < 5; i++)
@@ -535,14 +535,14 @@ static void buildScene(Scene& s, float t)
     {
         float cx = -6.0f + 1.2f + 2.4f * i;
         mat4 P = glm::translate(I, vec3(cx, -1.85f, 0.55f));
-        P = glm::rotate(P, glm::radians(12.0f * std::sin(t * 0.8f + i * 1.3f)), vec3(0, 1, 0));
+        P = glm::rotate(P, glm::radians(0.0f), vec3(0, 1, 0));
         switch (i)
         {
             case 0: itemGraduation(s, P); break;
             case 1: itemGlobe(s, P); break;
             case 2: itemHouse(s, P); break;
             case 3: itemCat(s, P); break;
-            default: itemTrophy(s, P, t); break;
+            default: itemTrophy(s, P); break;
         }
     }
 }
@@ -628,7 +628,7 @@ int main()
     const vec3 target(0.0f, 0.5f, 0.4f);
     const float dist = 12.5f;
     float yawManual = 0.0f, pitchManual = 0.0f;
-    bool sway = true, spaceWas = false;
+    bool sway = false, spaceWas = false;
     const mat4 projection = glm::perspective(glm::radians(45.0f), (float)WIN_W / (float)WIN_H, 0.1f, 100.0f);
 
     std::cout << "Arrow keys: orbit | Space: toggle sway | Esc: quit\n";
@@ -659,7 +659,7 @@ int main()
         vec3 camPos = target + dist * vec3(std::sin(yaw) * std::cos(pitch), std::sin(pitch), std::cos(yaw) * std::cos(pitch));
         mat4 view = glm::lookAt(camPos, target, vec3(0, 1, 0));
 
-        buildScene(scene, t);
+        buildScene(scene);
 
         // pass 1: depth from the light
         glViewport(0, 0, SHADOW_RES, SHADOW_RES);

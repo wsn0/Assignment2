@@ -1,0 +1,124 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "win-msvc-2026",
+      "displayName": "Windows MSVC (Visual Studio 2026)",
+      "description": "64-bit Windows build using Visual Studio 2026. Requires CMake 4.2 or newer.",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "win-msvc-2022",
+      "displayName": "Windows MSVC (Visual Studio 2022)",
+      "description": "64-bit Windows fallback for machines still using Visual Studio 2022.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "mac-arm64",
+      "displayName": "macOS Apple Silicon (arm64)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "arm64-osx"
+      }
+    },
+    {
+      "name": "mac-intel",
+      "displayName": "macOS Intel (x64)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-osx"
+      }
+    },
+    {
+      "name": "linux-x64",
+      "displayName": "Linux x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-win-2026-debug",
+      "configurePreset": "win-msvc-2026",
+      "configuration": "Debug"
+    },
+    {
+      "name": "build-win-2026-release",
+      "configurePreset": "win-msvc-2026",
+      "configuration": "Release"
+    },
+    {
+      "name": "build-win-2022-debug",
+      "configurePreset": "win-msvc-2022",
+      "configuration": "Debug"
+    },
+    {
+      "name": "build-win-2022-release",
+      "configurePreset": "win-msvc-2022",
+      "configuration": "Release"
+    },
+    {
+      "name": "build-mac-arm64",
+      "configurePreset": "mac-arm64"
+    },
+    {
+      "name": "build-mac-intel",
+      "configurePreset": "mac-intel"
+    },
+    {
+      "name": "build-linux",
+      "configurePreset": "linux-x64"
+    }
+  ]
+}

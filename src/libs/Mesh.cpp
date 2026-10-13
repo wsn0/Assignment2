@@ -88,6 +88,16 @@ void Mesh::uploadInterleaved_(const std::vector<VertexPNU>& vertices,
     // Clean previous
     ClearMesh();
 
+    // Bounding Box
+    if (!vertices.empty()) {
+        boundsMin = boundsMax = vertices[0].position;
+
+        for (const VertexPNU& v : vertices) {
+            boundsMin = glm::min(boundsMin, v.position);
+            boundsMax = glm::max(boundsMax, v.position);
+        }
+    }
+
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
@@ -289,3 +299,4 @@ void Mesh::ClearMesh()
     }
     indexCount = 0;
 }
+

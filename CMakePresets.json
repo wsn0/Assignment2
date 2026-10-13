@@ -7,13 +7,17 @@
   },
   "configurePresets": [
     {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+    },
+    {
       "name": "win-msvc-2026",
       "displayName": "Windows MSVC (Visual Studio 2026)",
       "description": "64-bit Windows build using Visual Studio 2026. Requires CMake 4.2 or newer.",
       "generator": "Visual Studio 18 2026",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/${presetName}",
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -21,7 +25,8 @@
       },
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "x64-windows"
-      }
+      },
+      "inherits": "base"
     },
     {
       "name": "win-msvc-2022",
@@ -29,7 +34,6 @@
       "description": "64-bit Windows fallback for machines still using Visual Studio 2022.",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/${presetName}",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -37,13 +41,13 @@
       },
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "x64-windows"
-      }
+      },
+      "inherits": "base"
     },
     {
       "name": "mac-arm64",
       "displayName": "macOS Apple Silicon (arm64)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -53,13 +57,13 @@
         "CMAKE_OSX_ARCHITECTURES": "arm64",
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_TARGET_TRIPLET": "arm64-osx"
-      }
+      },
+      "inherits": "base"
     },
     {
       "name": "mac-intel",
       "displayName": "macOS Intel (x64)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -69,13 +73,13 @@
         "CMAKE_OSX_ARCHITECTURES": "x86_64",
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_TARGET_TRIPLET": "x64-osx"
-      }
+      },
+      "inherits": "base"
     },
     {
       "name": "linux-x64",
       "displayName": "Linux x64",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -84,7 +88,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_TARGET_TRIPLET": "x64-linux"
-      }
+      },
+      "inherits": "base"
     }
   ],
   "buildPresets": [

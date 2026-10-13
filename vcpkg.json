@@ -1,5 +1,5 @@
 {
   "name": "achievement-case",
   "version": "1.0.0",
-  "dependencies": ["glew", "glfw3", "glm"]
+  "dependencies": ["glew", "glfw3", "glm", "stb"]
 }

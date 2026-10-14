@@ -35,6 +35,12 @@ void main()
     vec3 base = (useTexture == 1) ? texture(texture1, TexCoord).rgb : uColor;
     vec3 N = normalize(vNormal);
 
+    // unlit == 2 : flat texture colour, no lighting at all (UI textbox)
+    if(unlit == 2) {
+        colour = vec4(base, 1.0);
+        return;
+    }
+
     if(unlit == 1) {
         float k = 0.70 + 0.30 * max(dot(N, normalize(vec3(0.3, 1.0, 0.5))), 0.0);
         colour = vec4(base * k, 1.0);

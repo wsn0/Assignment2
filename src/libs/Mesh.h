@@ -133,19 +133,88 @@ inline void AddTrialFlat(MeshData& m, glm::vec3 a, glm::vec3 b, glm::vec3 c, glm
     m.indices.push_back(base+2);
 }
 
-inline void AddInvertedPyramid(MeshData& m , glm::vec3 center, float radius, float height, int sides = 4) {
+inline void AddInvertedPyramid(MeshData& m, glm::vec3 center, float radius, float height, int sides = 4, float tipRadius = 0.0f, int tipSegs = 8) {
     const float PI2 = 6.28318530718f;
     glm::vec3 apex = center + glm::vec3(0.0f, -height * 0.5f, 0.0f);
     glm::vec3 topMid = center + glm::vec3(0.0f, height * 0.5f,0.0f);
 
-    for(int i=0 ;i<sides; i++) {
-        float a0 = PI2 * i /sides;
-        float a1 = PI2 *(i+1) / sides;
-        glm::vec3 p0 = topMid + glm::vec3(radius * cosf(a0), 0.0f, radius * sinf(a0));
-        glm::vec3 p1 = topMid + glm::vec3(radius * cosf(a1), 0.0f, radius * sinf(a1));
+    // Sharp tip (tipRadius = 0) -> same as the old version
+    if (tipRadius <= 0.0f || tipSegs < 1) {
+        for(int i=0 ;i<sides; i++) {
+            float a0 = PI2 * i /sides;
+            float a1 = PI2 *(i+1) / sides;
+            glm::vec3 p0 = topMid + glm::vec3(radius * cosf(a0), 0.0f, radius * sinf(a0));
+            glm::vec3 p1 = topMid + glm::vec3(radius * cosf(a1), 0.0f, radius * sinf(a1));
 
-        AddTrialFlat(m, apex, p0, p1, center); // ด้านข้าง
-        AddTrialFlat(m, topMid, p0, p1, center); // ด้านบน
+            AddTrialFlat(m, apex, p0, p1, center); // ด้านข้าง
+            AddTrialFlat(m, topMid, p0, p1, center); // ด้านบน
+        }
+        return;
+    }
+
+    const float apothem = radius * cosf(PI2 * 0.5f / sides);
+    const float slant   = sqrtf(height * height + apothem * apothem);
+    tipRadius = std::min(tipRadius, 0.5f * apothem * slant / height);
+
+    const float sphereY = tipRadius * slant / apothem;      
+    const float cutApo  = tipRadius * height / slant;
+    const float capAng  = atan2f(height, apothem); 
+
+    const glm::vec3 sphereC = apex + glm::vec3(0.0f, sphereY, 0.0f);
+    const float faceAng = PI2 / sides;
+
+    auto addTri = [&](unsigned a, unsigned b, unsigned c) {  
+        const glm::vec3 g = glm::cross(m.vertices[b].position - m.vertices[a].position, m.vertices[c].position - m.vertices[a].position);
+        const glm::vec3 n = m.vertices[a].normal + m.vertices[b].normal + m.vertices[c].normal;
+        if (glm::dot(g, n) < 0.0f) std::swap(b, c);
+        m.indices.push_back(a); m.indices.push_back(b); m.indices.push_back(c);
+    };
+
+    const int S = tipSegs;
+    for (int i = 0; i < sides; i++) {
+        const float a0 = faceAng * i, a1 = faceAng * (i + 1), am = 0.5f * (a0 + a1);
+        const glm::vec3 nf(height / slant * cosf(am), -apothem / slant, height / slant * sinf(am));
+
+        // Cap: ring 0 = pole, rings 1..S (S+1 points each) go up to the cut polygon
+        const unsigned pole = (unsigned)m.vertices.size();
+        m.vertices.push_back({sphereC + glm::vec3(0.0f, -tipRadius, 0.0f), {0.0f, -1.0f, 0.0f}, {0.5f, 0.0f}});
+
+        const unsigned ringBase = (unsigned)m.vertices.size();
+        for (int k = 1; k <= S; k++) {
+            const float t = (float)k / S, w = t * t;                 // w: 0 = sphere, 1 = flat face
+            const float th = capAng * t;
+            for (int j = 0; j <= S; j++) {
+                const float phi = a0 + (a1 - a0) * j / S;
+                const glm::vec3 ns(sinf(th) * cosf(phi), -cosf(th), sinf(th) * sinf(phi));
+                const float rho = cutApo / cosf(phi - am);           // distance to the cut polygon at this angle
+                const float sphereR = tipRadius * sinf(th);
+                const float r = sphereR * (1.0f + (rho / (tipRadius * sinf(capAng)) - 1.0f) * w);
+
+                const glm::vec3 pos = sphereC + glm::vec3(r * cosf(phi), -tipRadius * cosf(th), r * sinf(phi));
+                const glm::vec3 nrm = glm::normalize(ns * (1.0f - w) + nf * w);
+                m.vertices.push_back({pos, nrm, {(float)j / S, t}});
+            }
+        }
+        auto ring = [&](int k, int j) { return ringBase + (unsigned)((k - 1) * (S + 1) + j); };
+
+        for (int j = 0; j < S; j++) addTri(pole, ring(1, j), ring(1, j + 1));
+        for (int k = 1; k < S; k++)
+            for (int j = 0; j < S; j++) {
+                addTri(ring(k, j), ring(k + 1, j), ring(k + 1, j + 1));
+                addTri(ring(k, j), ring(k + 1, j + 1), ring(k, j + 1));
+            }
+
+        // Flat face: from the cut polygon edge (ring S) up to the top edge
+        const glm::vec3 b0 = topMid + glm::vec3(radius * cosf(a0), 0.0f, radius * sinf(a0));
+        const glm::vec3 b1 = topMid + glm::vec3(radius * cosf(a1), 0.0f, radius * sinf(a1));
+        const unsigned ib0 = (unsigned)m.vertices.size();
+        m.vertices.push_back({b0, nf, {0.0f, 1.0f}});
+        m.vertices.push_back({b1, nf, {1.0f, 1.0f}});
+        addTri(ib0, ib0 + 1, ring(S, S));
+        for (int j = S; j > 0; j--) addTri(ib0, ring(S, j), ring(S, j - 1));
+
+        // Top cap
+        AddTrialFlat(m, topMid, b0, b1, center);
     }
 }
 

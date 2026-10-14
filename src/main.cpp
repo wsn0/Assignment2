@@ -3,6 +3,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_WINDOWS_UTF8
+#define STBIW_WINDOWS_UTF8
 
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -29,6 +30,7 @@ const GLint HEIGHT = 600;
 const std::filesystem::path shaderDirectory  = std::filesystem::u8path(PROJECT_SHADER_DIR);
 const std::filesystem::path textureDirectory = std::filesystem::u8path(PROJECT_TEXTURE_DIR);
 const std::filesystem::path modelDirectory   = std::filesystem::u8path(PROJECT_MODEL_DIR);
+const std::filesystem::path projectDirectory = (textureDirectory / "..").lexically_normal();
 
 // Camera settings
 namespace Camera
@@ -75,6 +77,8 @@ namespace Config
     const float MARKER_R = 0.25f;
     const float MARKER_H = 0.50f;
     const int MARKER_SIDES = 4;
+    const float MARKER_TIP_R = 0.04f;
+    const int MARKER_TIP_SEGS = 8;
     const float MARKER_YAW = 0.0f; 
 
     const float SKIRT_THICK = 0.2f;
@@ -84,8 +88,8 @@ namespace Config
 
     // Character 
     const float CHAR_X = 0.0f;
-    const float CHAR_Z = 5.0f;
-    const float CHAR_HEIGHT = 2.5f;
+    const float CHAR_Z = 4.0f;
+    const float CHAR_HEIGHT = 2.8f;
     const float CHAR_YAW = 0.0f;
 
     const float CHAR_MIN_Y = -0.9519f;
@@ -95,7 +99,7 @@ namespace Config
     const float STAND_TOP_Y = 0.14f;
 
     // Plane and Globe on the same stand
-    const int   PLANE_STAND = 2;
+    const int PLANE_STAND = 2;
     const float PLANE_SIZE = 2.3f;
     const float PLANE_SCALE = 1.7f;
     const float PLANE_YAW = glm::radians(60.0f);
@@ -103,7 +107,7 @@ namespace Config
     const float PLANE_DX = -0.85f;
     const float PLANE_DZ = -0.2f;
     
-    const int   GLOBE_STAND = 2;
+    const int GLOBE_STAND = 2;
     const float GLOBE_SIZE = 2.3f;
     const float GLOBE_YAW  = 0.0f;
     const float GLOBE_HOVER = 0.0f;
@@ -111,17 +115,90 @@ namespace Config
     const float GLOBE_DZ = 0.35f;
 
     // Grad student
-    const int   GRAD_STAND  = 0; 
-    const float GRAD_HEIGHT = 3.0f;
+    const int GRAD_STAND  = 0; 
+    const float GRAD_HEIGHT = 3.3f;
     const float GRAD_YAW = glm::radians(45.0f);
     const float GRAD_HOVER = 0.0f;
     const float GRAD_DX = -0.0f;
     const float GRAD_DZ = 0.0f;
 
+    // Gauntlet
+    const int GAUNT_STAND  = 3; 
+    const float GAUNT_HEIGHT = 3.0f;
+    const float GAUNT_YAW = 0.0f;
+    const float GAUNT_HOVER = 0.0f;
+    const float GAUNT_DX = 0.3f;
+    const float GAUNT_DZ = 0.0f;
+
+    // Astronaut
+    const int ASTRO_STAND  = 1; 
+    const float ASTRO_DX = -0.5f;
+    const float ASTRO_DZ = 0.0f;
+    const float ASTRO_HEIGHT = 3.0f;
+    const float ASTRO_YAW = glm::radians(-20.0f);
+    const float ASTRO_TILT = glm::radians(-10.0f);
+
     // Photo frame on the back wall
     const float PHOTO_H = 1.5f;
     const float PHOTO_MAX_W = 1.3f;
     const float PHOTO_GAP = 0.01f;
+
+    // Textbox
+    const float TEXTBOX_PX_W = 403.1f;
+    const float TEXTBOX_CX_PX = 402.4f;
+    const float TEXTBOX_CY_PX = 511.6f;
+    const float TEXTBOX_DIST = 8.0f;
+
+    // Confetti
+    struct Confetti
+    {
+        float dx, y, dz;
+        float roll, yaw, pitch;
+        int color;
+    };
+
+    const int CONFETTI_NUM_COLOR = 4;
+    const glm::vec3 CONFETTI_COLORS[CONFETTI_NUM_COLOR] = {
+        glm::vec3(0.98f, 0.80f, 0.30f),
+        glm::vec3(0.90f, 0.48f, 0.40f),
+        glm::vec3(0.50f, 0.74f, 0.92f),
+        glm::vec3(0.98f, 0.93f, 0.80f)
+    };
+
+    const float CONFETTI_HALF_W = 0.16f;
+    const float CONFETTI_HALF_H = 0.10f;
+    const float CONFETTI_GAP = 0.004f;
+
+    // dx, y, dz, roll, yaw, pitch, color
+        const Confetti CONFETTI[] = {
+        {0.87f, 3.58f, 0.30f, 35, -50, 25, 0},
+        {1.21f, 3.11f, 0.20f, -60, 40, -35, 2},
+        {0.55f, 3.97f, 0.30f, 80, 20, 60, 1},
+        {0.23f, 3.69f, 0.20f, -20, 65, -45,  0},
+        {1.26f, 1.69f, 0.40f, 50, 40, 50,  1},
+        {1.34f, 2.07f, 0.30f, -100, -25,  30, 2},
+        {1.47f, 1.27f, 0.40f, 160, -60, -20, 0},
+        {1.59f, 1.70f, 0.20f, -75, -45, -60, 3},
+        {0.03f, 1.16f, 0.50f, 70, -35, 40,  2},
+        {0.96f, 0.48f, 0.40f, -40, 50, -55, 0},
+        {-0.26f, 0.66f, 0.40f, 130, 25, 20, 1},
+        {1.28f, 0.76f, 0.40f, -90, -40, 45, 3},
+        {1.82f, 3.43f, 0.00f, -130, 30, 55, 1}
+    };
+
+    // Sparkles
+    struct Sparkle
+    {
+        float dx, dy, size;
+    };
+
+    const float SPARKLE_THICKNESS = 0.12f;
+    const Sparkle SPARKLES[] = {
+        {-0.52f, 1.00f, 0.26f},
+        {0.55f, 0.72f, 0.20f},
+        {-0.55f, 0.42f, 0.16f},
+        {0.30f, 1.10f, 0.13f}
+    };
 }
 
 struct Layout
@@ -157,6 +234,12 @@ struct Exhibit
 
 std::vector<Exhibit> exhibits;
 std::vector<float> frameCX;
+Exhibit textbox;
+
+Object sparkleObj[2] = {
+    {nullptr, {1.0f, 0.84f, 0.35f}, 0.0f},
+    {nullptr, {1.0f, 0.97f, 0.82f}, 0.0f}
+};
 
 Layout ComputeLayout()
 {
@@ -203,6 +286,16 @@ Layout ComputeLayout()
 }
 
 const Layout layout = ComputeLayout();
+
+// Viwport culling for efficiency
+const glm::mat4 vp = glm::perspective(glm::radians(Camera::FOV), Camera::ASPECT, 0.1f, 100.0f) * glm::lookAt(Camera::POS, Camera::TARGET, glm::vec3(0.0f, 1.0f, 0.0f));
+bool InView(const glm::vec3& p, float r = 0.0f)
+{
+    const float tanHalf = glm::tan(glm::radians(Camera::FOV) * 0.5f);
+    const glm::vec4 q = vp * glm::vec4(p, 1.0f);
+
+    return (q.w + r > 0.0f) && (glm::abs(q.x) <= q.w + r / (tanHalf * Camera::ASPECT)) && (glm::abs(q.y) <= q.w + r / tanHalf);
+}
 
 void AddObj(const MeshData& data, glm::vec3 color, float headScale = Config::ROOM_HEAD_SCALE)
 {
@@ -259,6 +352,61 @@ void CreateDisplays()
     AddObj(platInner, {0.66f, 0.70f, 0.54f}, Config::OBJECT_HEAD_SCALE);
     AddObj(pedestal,  {0.15f, 0.22f, 0.42f}, Config::OBJECT_HEAD_SCALE);
     AddObj(plaque,    {0.88f, 0.78f, 0.52f}, Config::OBJECT_HEAD_SCALE);
+}
+
+// Decoration around the objects
+void CreateDecor()
+{
+    using namespace Config;
+
+    // Confetti
+    const glm::vec3 g = spotPos[GRAD_STAND] + glm::vec3(GRAD_DX, 0.0f, GRAD_DZ);
+    MeshData confetti[CONFETTI_NUM_COLOR];
+
+    for (const Confetti& c : CONFETTI) {
+        const glm::vec3 p(g.x + c.dx, c.y, g.z + c.dz);
+
+        glm::mat4 r(1.0f);
+        r = glm::rotate(r, glm::radians(c.yaw),   glm::vec3(0.0f, 1.0f, 0.0f));
+        r = glm::rotate(r, glm::radians(c.pitch), glm::vec3(1.0f, 0.0f, 0.0f));
+        r = glm::rotate(r, glm::radians(c.roll),  glm::vec3(0.0f, 0.0f, 1.0f));
+
+        auto corner = [&](float x, float y) { return p + glm::vec3(r * glm::vec4(x, y, 0.0f, 0.0f)); };
+        const glm::vec3 q0 = corner(-CONFETTI_HALF_W, -CONFETTI_HALF_H);
+        const glm::vec3 q1 = corner( CONFETTI_HALF_W, -CONFETTI_HALF_H);
+        const glm::vec3 q2 = corner( CONFETTI_HALF_W,  CONFETTI_HALF_H);
+        const glm::vec3 q3 = corner(-CONFETTI_HALF_W,  CONFETTI_HALF_H);
+
+        const glm::vec3 off = glm::vec3(r * glm::vec4(0.0f, 0.0f, CONFETTI_GAP, 0.0f));
+        AddQuad(confetti[c.color], q0 + off, q1 + off, q2 + off, q3 + off);
+        AddQuad(confetti[c.color], q3 - off, q2 - off, q1 - off, q0 - off);
+    }
+
+    for (int i = 0; i < CONFETTI_NUM_COLOR; i++) {
+        if (!confetti[i].indices.empty()) {
+            AddObj(confetti[i], CONFETTI_COLORS[i], OBJECT_HEAD_SCALE);
+        }
+    }
+
+    // Sparkles
+    const glm::vec3 c = spotPos[GAUNT_STAND] + glm::vec3(GAUNT_DX, 0.0f, GAUNT_DZ + 0.4f);
+    MeshData spark, core;
+
+    for (const Sparkle& s : SPARKLES) {
+        const float x = c.x + s.dx * GAUNT_HEIGHT;
+        const float y = STAND_TOP_Y + GAUNT_HOVER + s.dy * GAUNT_HEIGHT;
+        const float w = s.size * SPARKLE_THICKNESS;
+
+        AddBox(spark, {x - s.size, y - w, c.z}, {x + s.size, y + w, c.z + 0.03f});
+        AddBox(spark, {x - w, y - s.size, c.z}, {x + w, y + s.size, c.z + 0.03f}); 
+
+        const float cl = s.size * 0.45f, cw = w * 1.5f;
+        AddBox(core, {x - cl, y - cw, c.z + 0.03f}, {x + cl, y + cw, c.z + 0.04f});
+        AddBox(core, {x - cw, y - cl, c.z + 0.03f}, {x + cw, y + cl, c.z + 0.04f});
+    }
+
+    sparkleObj[0].mesh = BuildMesh(spark);
+    sparkleObj[1].mesh = BuildMesh(core);
 }
 
 // Draw room (the background)
@@ -327,9 +475,9 @@ void CreateRoom()
     const int numB = glm::max(1, (int)(W / 3.6f));
     const int stepB = W / numB;
     frameCX.clear();
-    for (int i = 0; i < numB; i++)
-    {
+    for (int i = 0; i < numB; i++) {
         float cx = X0 + stepB * (i + 0.5f);
+
         frameCX.push_back(cx);
         AddBox(panels, {cx - 1.1f, 2.5f, Z0}, {cx + 1.1f, 4.4f, Z0 + 0.08f});
     }
@@ -337,8 +485,7 @@ void CreateRoom()
     const float Dz = Z1 - Z0;
     const int numS = glm::max(1, (int)(Dz / 4.2f));
     const float stepS = Dz / numS;
-    for (int i = 0; i < numS; i++)
-    {
+    for (int i = 0; i < numS; i++) {
         float cz = Z0 + stepS * (i + 0.5f);
 
         AddBox(panels, {X0, 2.5f, cz - 1.1f }, {X0 + 0.08f, 4.4f, cz + 1.1f});
@@ -355,7 +502,7 @@ void CreateRoom()
 void CreateMarker() 
 {
     MeshData m;
-    AddInvertedPyramid(m , {0.0f, 0.0f, 0.0f}, Config::MARKER_R, Config::MARKER_H, Config::MARKER_SIDES);
+    AddInvertedPyramid(m , {0.0f, 0.0f, 0.0f}, Config::MARKER_R, Config::MARKER_H, Config::MARKER_SIDES, Config::MARKER_TIP_R, Config::MARKER_TIP_SEGS);
     markerObj.mesh = BuildMesh(m);
 }
 
@@ -410,8 +557,7 @@ void CreateCharater()
 
 glm::vec2 StandCenter(int i)
 {
-    switch (i)
-    {
+    switch (i) {
         case 0:  return {-layout.frontCX, layout.frontCZ};
         case 1:  return { layout.frontCX, layout.frontCZ};
         case 2:  return {-layout.backCX,  layout.backCZ};
@@ -455,17 +601,16 @@ void CreateExhibits()
 
     // Plane
     Exhibit plane;
-    if (LoadExhibit(plane, "Plane.obj", textureDirectory / "plane" / "Plane_basecolor.png"))
-    {
+    if (LoadExhibit(plane, "Plane.obj", textureDirectory / "plane" / "Plane_basecolor.png")) {
         const glm::vec2 c = StandCenter(PLANE_STAND);
         plane.matrix = MakeExhibitMatrix(*plane.mesh, c.x + PLANE_DX, c.y + PLANE_DZ, PLANE_SIZE * PLANE_SCALE, PLANE_YAW, PLANE_HOVER);
+
         exhibits.push_back(plane);
     }
 
     // Globe
     Exhibit globe;
-    if (LoadExhibit(globe, "Globe.obj", textureDirectory / "globe" / "Globe_Color.png"))
-    {
+    if (LoadExhibit(globe, "Globe.obj", textureDirectory / "globe" / "Globe_Color.png")) {
         const glm::vec2 c = StandCenter(GLOBE_STAND);
         globe.matrix = MakeExhibitMatrix(*globe.mesh, c.x + GLOBE_DX, c.y + GLOBE_DZ, GLOBE_SIZE, GLOBE_YAW, GLOBE_HOVER);
 
@@ -474,11 +619,39 @@ void CreateExhibits()
 
     // Grad student
     Exhibit grad;
-    if (spotPos.size() > (size_t)GRAD_STAND && LoadExhibit(grad, "Graduate.obj", textureDirectory / "gradute" / "texture.jpg"))
-    {
+    if (spotPos.size() > (size_t)GRAD_STAND && LoadExhibit(grad, "Graduate.obj", textureDirectory / "gradute" / "texture.jpg")) {
         const glm::vec3 light = spotPos[GRAD_STAND];
         grad.matrix = MakeExhibitMatrix(*grad.mesh, light.x + GRAD_DX, light.z + GRAD_DZ, GRAD_HEIGHT, GRAD_YAW, GRAD_HOVER);
+
         exhibits.push_back(grad);
+    }
+
+    // Guantlet
+    Exhibit gauntlet;
+    if (spotPos.size() > (size_t)GAUNT_STAND && LoadExhibit(gauntlet, "Iron_Gauntlet.obj", textureDirectory / "gauntlet" / "Iron_Gauntlet_diffuse.jpg")) {
+        const glm::vec3 light = spotPos[GAUNT_STAND];
+        gauntlet.matrix = MakeExhibitMatrix(*gauntlet.mesh, light.x + GAUNT_DX, light.z + GAUNT_DZ, GAUNT_HEIGHT, GAUNT_YAW, GAUNT_HOVER);
+
+        exhibits.push_back(gauntlet);
+    }
+
+    // Astronaut
+    Exhibit astro;
+    if (LoadExhibit(astro, "Astronaut.obj", textureDirectory / "astronaut" / "astronaut_basecolor.jpg")) {
+        const glm::vec3 mn = astro.mesh->GetBoundsMin();
+        const glm::vec3 mx = astro.mesh->GetBoundsMax();
+        const float s = ASTRO_HEIGHT / (mx.y - mn.y);
+        const glm::vec2 c = StandCenter(ASTRO_STAND);
+
+        glm::mat4 m(1.0f);
+        m = glm::translate(m, glm::vec3(c.x + ASTRO_DX, STAND_TOP_Y, c.y + ASTRO_DZ));
+        m = glm::rotate(m, -ASTRO_TILT, glm::vec3(0.0f, 0.0f, 1.0f));
+        m = glm::rotate(m, ASTRO_YAW, glm::vec3(0.0f, 1.0f, 0.0f));
+        m = glm::scale(m, glm::vec3(s));
+        m = glm::translate(m, glm::vec3(-(mn.x + mx.x) * 0.5f, -mn.y, -(mn.z + mx.z) * 0.5f));
+
+        astro.matrix = m;
+        exhibits.push_back(astro);
     }
 }
 
@@ -515,8 +688,39 @@ void CreatePhotos()
         Exhibit e;
         e.mesh = BuildMesh(q);
         e.tex  = LoadTexture(path);
+
         exhibits.push_back(e);
     }
+}
+
+void CreateTextbox()
+{
+    using namespace Config;
+
+    Exhibit e;
+    if (!LoadExhibit(e, "Textbox.obj", textureDirectory / "textbox" / "Textbox_basecolor.png")) { return; }
+
+    const glm::vec3 mn = e.mesh->GetBoundsMin();
+    const glm::vec3 mx = e.mesh->GetBoundsMax();
+
+    const float worldPerPx = 2.0f * TEXTBOX_DIST * glm::tan(glm::radians(Camera::FOV) * 0.5f) / (float)HEIGHT;
+    const float s = TEXTBOX_PX_W * worldPerPx / (mx.x - mn.x);
+
+    const glm::vec3 f = glm::normalize(Camera::TARGET - Camera::POS);
+    const glm::vec3 r = glm::normalize(glm::cross(f, glm::vec3(0.0f, 1.0f, 0.0f)));
+    const glm::vec3 u = glm::cross(r, f);
+
+    const glm::vec3 centre = Camera::POS + f * TEXTBOX_DIST + r * ((TEXTBOX_CX_PX - WIDTH  * 0.5f) * worldPerPx) + u * ((HEIGHT * 0.5f - TEXTBOX_CY_PX) * worldPerPx);
+    
+    glm::mat4 basis(1.0f);
+    basis[0] = glm::vec4(r, 0.0f);
+    basis[1] = glm::vec4(u, 0.0f);
+    basis[2] = glm::vec4(-f, 0.0f);
+    basis[3] = glm::vec4(centre, 1.0f);
+
+    e.matrix = basis * glm::scale(glm::mat4(1.0f), glm::vec3(s)) * glm::translate(glm::mat4(1.0f), -(mn + mx) * 0.5f);
+
+    textbox = e;
 }
 
 void Cleanup()
@@ -526,6 +730,8 @@ void Cleanup()
 
     delete markerObj.mesh;
     markerObj.mesh = nullptr;
+
+    for (Object& o : sparkleObj) { delete o.mesh; o.mesh = nullptr; }
 
     delete charMesh;
     charMesh = nullptr;
@@ -537,21 +743,29 @@ void Cleanup()
     }
     exhibits.clear();
 
+    delete textbox.mesh;
+    textbox.mesh = nullptr;
+    if (textbox.tex) { glDeleteTextures(1, &textbox.tex); textbox.tex = 0; }
+
     for (Shader* shader : shaderList) { delete shader; }
     shaderList.clear();
 }
 
 // Press P to save the rendered image (PNG format)
-void SaveScreenshot(const char* filename, int w, int h)
+void SaveScreenshot(const std::filesystem::path& file, int w, int h)
 {
     std::vector<unsigned char> pixels((size_t)w * h * 3);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
     stbi_flip_vertically_on_write(1);
-    stbi_write_png(filename, w, h, 3, pixels.data(), w * 3);
 
-    std::cout << "Saved " << filename << std::endl;
+    const std::string out = file.u8string();
+    if (stbi_write_png(out.c_str(), w, h, 3, pixels.data(), w * 3))
+        std::cout << "Saved " << out << std::endl;
+    else
+        std::cerr << "Failed to save " << out << std::endl;
 }
+
 #ifdef _WIN32
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 1;
@@ -567,10 +781,12 @@ int main()
 
     CreateRoom();
     CreateDisplays();
+    CreateDecor();
     CreateMarker();
     CreateCharater();
     CreateExhibits();
     CreatePhotos();
+    CreateTextbox();
     CreateShaders();
 
     glm::mat4 projection = glm::perspective(
@@ -665,6 +881,14 @@ int main()
             glUniformMatrix4fv(sh -> GetUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(mm));
             markerObj.mesh -> RenderMesh();
         }
+
+        glUniformMatrix4fv(sh->GetUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(model));
+        for (const Object& o : sparkleObj) {
+            glUniform3fv(sh->GetUniformLocation("uColor"), 1, glm::value_ptr(o.color));
+
+            o.mesh->RenderMesh();
+        }
+
         glUniform1i(sh -> GetUniformLocation("unlit"), 0);
 
         // Character with texture mapped
@@ -694,16 +918,29 @@ int main()
             e.mesh->RenderMesh();
         }
 
+        if (textbox.mesh && textbox.tex) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, textbox.tex);
+            glUniform1i(sh->GetUniformLocation("texture1"), 0);
+            glUniform1i(sh->GetUniformLocation("useTexture"), 1);
+            glUniform1i(sh->GetUniformLocation("unlit"), 2);
+            glUniformMatrix4fv(sh->GetUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(textbox.matrix));
+
+            textbox.mesh->RenderMesh();
+
+            glUniform1i(sh->GetUniformLocation("unlit"), 0);
+        }
+
         glUniform1i(sh->GetUniformLocation("useTexture"), 0);
         glBindTexture(GL_TEXTURE_2D, 0);
         
         glUseProgram(0);
 
         bool pDown = glfwGetKey(mainWindow.getWindow(), GLFW_KEY_P) == GLFW_PRESS;
-        if (pDown && !pressP)
-            SaveScreenshot("screenshot.png", mainWindow.getBufferWidth(), mainWindow.getBufferHeight());
-        pressP = pDown;
-
+        if (pDown && !pressP) {
+            SaveScreenshot(projectDirectory / "image.png", mainWindow.getBufferWidth(), mainWindow.getBufferHeight());
+        }
+        
         mainWindow.swapBuffers();
     }
 

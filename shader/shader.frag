@@ -32,6 +32,12 @@ uniform float rugRadius;
 
 void main()
 {
+    if(unlit == 3) {
+        float a = texture(texture1, TexCoord).r;
+        if(a < 0.01) discard;
+        colour = vec4(uColor, a);
+        return;
+    }
     vec3 base = (useTexture == 1) ? texture(texture1, TexCoord).rgb : uColor;
     vec3 N = normalize(vNormal);
 

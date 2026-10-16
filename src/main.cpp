@@ -1,12 +1,14 @@
 #undef GLFW_DLL
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_WINDOWS_UTF8
 #define STBIW_WINDOWS_UTF8
 
 #include <stb_image.h>
 #include <stb_image_write.h>
+#include <stb_truetype.h>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -16,8 +18,10 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <filesystem>
+#include <fstream>
 #include <vector>
 #include <iostream>
+#include <string>
 
 #include "libs/Mesh.h"
 #include "libs/Shader.h"
@@ -79,7 +83,31 @@ namespace Config
     const int MARKER_SIDES = 4;
     const float MARKER_TIP_R = 0.04f;
     const int MARKER_TIP_SEGS = 8;
-    const float MARKER_YAW = 0.0f; 
+    const float MARKER_YAW = 0.0f;
+    
+    struct LabelCfg {
+        const char* text;
+        float size;
+        float heightFrac;
+        float frontGap;
+        float dx;
+    };
+
+    //Achievement Text
+    const LabelCfg LABELS[] = {
+        // size, ความสูงบน model, ระยะห่างจาก model มาทางด้านกล้อง, เลื่อนซ้าย (-) , ขวา (+)
+        { "Graduation",          0.45f, 0.50f,     0.6f,    1.6f },
+        { "To the Space",        0.45f, 0.75f,     1.1f,    0.0f },
+        { "travel around world", 0.45f, 0.50f,     0.6f,    0.5f },
+        { "Rich",                0.45f, 0.50f,     0.6f,    0.0f },   
+    };
+
+    const int STAND_COUNT = sizeof(LABELS) / sizeof(LABELS[0]);
+
+    const float LABEL_CAP = 0.72f;
+    const float LABEL_SHADOW = 0.025f;
+    const float LABEL_FONT_PX = 64.0f;
+    const int LABEL_ATLAS = 1024;
 
     const float SKIRT_THICK = 0.2f;
     const float VIEW_MARGIN = 0.3f;
@@ -144,10 +172,14 @@ namespace Config
     const float PHOTO_GAP = 0.01f;
 
     // Textbox
-    const float TEXTBOX_PX_W = 403.1f;
+    const float TEXTBOX_PX_W = 300.0f;
     const float TEXTBOX_CX_PX = 402.4f;
-    const float TEXTBOX_CY_PX = 511.6f;
+    const float TEXTBOX_CY_PX = 490.6f;
     const float TEXTBOX_DIST = 8.0f;
+
+    
+
+
 
     // Confetti
     struct Confetti
@@ -230,11 +262,19 @@ struct Exhibit
     GLuint tex = 0;
     glm::vec3 color{1.0f};
     glm::mat4 matrix{1.0f};
+    int stand = -1;
 };
 
 std::vector<Exhibit> exhibits;
 std::vector<float> frameCX;
 Exhibit textbox;
+
+GLuint fontTex = 0;
+stbtt_bakedchar glyphs[96];
+std::vector<Mesh*> labelMesh;
+std::vector<glm::vec3> labelPos;
+std::vector<float> labelSize;
+glm::mat4 billboard(1.0f);
 
 Object sparkleObj[2] = {
     {nullptr, {1.0f, 0.84f, 0.35f}, 0.0f},
@@ -605,6 +645,7 @@ void CreateExhibits()
         const glm::vec2 c = StandCenter(PLANE_STAND);
         plane.matrix = MakeExhibitMatrix(*plane.mesh, c.x + PLANE_DX, c.y + PLANE_DZ, PLANE_SIZE * PLANE_SCALE, PLANE_YAW, PLANE_HOVER);
 
+        plane.stand = PLANE_STAND;     exhibits.push_back(plane);
         exhibits.push_back(plane);
     }
 
@@ -614,6 +655,7 @@ void CreateExhibits()
         const glm::vec2 c = StandCenter(GLOBE_STAND);
         globe.matrix = MakeExhibitMatrix(*globe.mesh, c.x + GLOBE_DX, c.y + GLOBE_DZ, GLOBE_SIZE, GLOBE_YAW, GLOBE_HOVER);
 
+        globe.stand = GLOBE_STAND;     exhibits.push_back(globe);
         exhibits.push_back(globe);
     }
 
@@ -623,6 +665,7 @@ void CreateExhibits()
         const glm::vec3 light = spotPos[GRAD_STAND];
         grad.matrix = MakeExhibitMatrix(*grad.mesh, light.x + GRAD_DX, light.z + GRAD_DZ, GRAD_HEIGHT, GRAD_YAW, GRAD_HOVER);
 
+        grad.stand = GRAD_STAND;       exhibits.push_back(grad);
         exhibits.push_back(grad);
     }
 
@@ -632,6 +675,7 @@ void CreateExhibits()
         const glm::vec3 light = spotPos[GAUNT_STAND];
         gauntlet.matrix = MakeExhibitMatrix(*gauntlet.mesh, light.x + GAUNT_DX, light.z + GAUNT_DZ, GAUNT_HEIGHT, GAUNT_YAW, GAUNT_HOVER);
 
+        gauntlet.stand = GAUNT_STAND;  exhibits.push_back(gauntlet);
         exhibits.push_back(gauntlet);
     }
 
@@ -650,6 +694,7 @@ void CreateExhibits()
         m = glm::scale(m, glm::vec3(s));
         m = glm::translate(m, glm::vec3(-(mn.x + mx.x) * 0.5f, -mn.y, -(mn.z + mx.z) * 0.5f));
 
+        astro.stand = ASTRO_STAND;     exhibits.push_back(astro);
         astro.matrix = m;
         exhibits.push_back(astro);
     }
@@ -723,8 +768,107 @@ void CreateTextbox()
     textbox = e;
 }
 
+void CreateFontAtlas()
+{
+    using namespace Config;
+    
+    std::ifstream f(textureDirectory / "font" / "Fredoka-VariableFont_wdth,wght.ttf", std::ios::binary);
+    std::vector<unsigned char> ttf((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (ttf.empty()) { std::cerr << "font.ttf not found\n"; return; }
+
+    std::vector<unsigned char> bitmap(LABEL_ATLAS * LABEL_ATLAS);
+    stbtt_BakeFontBitmap(ttf.data(), 0, LABEL_FONT_PX, bitmap.data(), LABEL_ATLAS, LABEL_ATLAS, 32, 96, glyphs);
+    
+
+    glGenTextures(1, &fontTex);
+    glBindTexture(GL_TEXTURE_2D, fontTex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, LABEL_ATLAS, LABEL_ATLAS, 0, GL_RED, GL_UNSIGNED_BYTE, bitmap.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+Mesh* BuildTextMesh(const char* text)
+{
+    using namespace Config;
+    const float k = 1.0f / LABEL_FONT_PX;      // pixel -> world
+    MeshData m;
+    float x = 0.0f, y = 0.0f;
+
+    for (const char* p = text; *p; ++p) {
+        if (*p < 32 || *p >= 128) continue;
+        stbtt_aligned_quad q;
+        stbtt_GetBakedQuad(glyphs, LABEL_ATLAS, LABEL_ATLAS, *p - 32, &x, &y, &q, 1);
+
+        const glm::vec3 n(0, 0, 1);
+        unsigned int b = (unsigned int)m.vertices.size();
+        m.vertices.push_back({{q.x0 * k, -q.y1 * k, 0}, n, {q.s0, q.t1}});
+        m.vertices.push_back({{q.x1 * k, -q.y1 * k, 0}, n, {q.s1, q.t1}});
+        m.vertices.push_back({{q.x1 * k, -q.y0 * k, 0}, n, {q.s1, q.t0}});
+        m.vertices.push_back({{q.x0 * k, -q.y0 * k, 0}, n, {q.s0, q.t0}});
+        m.indices.insert(m.indices.end(), {b, b+1, b+2, b, b+2, b+3});
+    }
+
+    // จัดกึ่งกลางตามแกน X
+    const float shift = -x * k * 0.5f;
+    for (auto& v : m.vertices) v.position.x += shift;
+
+    return BuildMesh(m);
+}
+
+void CreateLabels()
+{
+    using namespace Config;
+    CreateFontAtlas();
+
+    for (int i = 0; i < STAND_COUNT; i++) {
+        labelMesh.push_back(BuildTextMesh(LABELS[i].text));
+        labelSize.push_back(LABELS[i].size);                    // size:     LABELS[i].size
+
+        // World-space bounding box of every model on this stand
+        glm::vec3 mn(1e9f), mx(-1e9f);
+        for (const Exhibit& e : exhibits) {
+            if (e.stand != i || !e.mesh) continue;
+            const glm::vec3 a = e.mesh->GetBoundsMin(), b = e.mesh->GetBoundsMax();
+            for (int c = 0; c < 8; c++) {
+                const glm::vec3 corner((c & 1) ? b.x : a.x, (c & 2) ? b.y : a.y, (c & 4) ? b.z : a.z);
+                const glm::vec3 w = glm::vec3(e.matrix * glm::vec4(corner, 1.0f));
+                mn = glm::min(mn, w);
+                mx = glm::max(mx, w);
+            }
+        }
+
+        if (mn.x > mx.x) {                                       // model missing -> fall back to the stand centre
+            const glm::vec2 c = StandCenter(i);
+            mn = glm::vec3(c.x, STAND_TOP_Y, c.y);
+            mx = mn;
+        }
+
+        labelPos.push_back({
+            (mn.x + mx.x) * 0.5f + LABELS[i].dx,                 // centred on the model
+            mn.y + (mx.y - mn.y) * LABELS[i].heightFrac,         // height as a fraction of the model
+            mx.z + LABELS[i].frontGap                            // in front of the model (toward the camera)
+        });
+    }
+
+    const glm::vec3 f = glm::normalize(Camera::TARGET - Camera::POS);
+    const glm::vec3 r = glm::normalize(glm::cross(f, glm::vec3(0, 1, 0)));
+    const glm::vec3 u = glm::cross(r, f);
+    billboard[0] = glm::vec4(r, 0.0f);
+    billboard[1] = glm::vec4(u, 0.0f);
+    billboard[2] = glm::vec4(-f, 0.0f);
+}
+
 void Cleanup()
 {
+    for(Mesh* m:labelMesh) {delete m;}
+    if(fontTex) {
+        glDeleteTextures(1, &fontTex);
+    }
+
     for (Object& o : sceneObj) { delete o.mesh; }    
     sceneObj.clear();
 
@@ -785,6 +929,7 @@ int main()
     CreateMarker();
     CreateCharater();
     CreateExhibits();
+    CreateLabels();
     CreatePhotos();
     CreateTextbox();
     CreateShaders();
@@ -930,6 +1075,36 @@ int main()
 
             glUniform1i(sh->GetUniformLocation("unlit"), 0);
         }
+
+        if(fontTex) {
+                glEnable (GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glDisable(GL_DEPTH_TEST);            // ให้ข้อความไม่ถูกโมเดลบัง
+
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, fontTex);
+                glUniform1i(sh->GetUniformLocation("texture1"), 0);
+                glUniform1i(sh->GetUniformLocation("useTexture"), 1);
+                glUniform1i(sh->GetUniformLocation("unlit"), 3);
+
+                for (size_t i = 0; i < labelMesh.size(); i++) {
+                    for (int pass = 0; pass < 2; pass++) {       // 0 = เงา, 1 = ตัวจริง
+                        glm::vec3 p = labelPos[i];
+                        if (pass == 0) p += glm::vec3(Config::LABEL_SHADOW, -Config::LABEL_SHADOW, -0.01f);
+                            glm::mat4 mm = glm::translate(glm::mat4(1.0f), p) * billboard
+                                        * glm::scale(glm::mat4(1.0f), glm::vec3(labelSize[i]));                        
+                        glm::vec3 col = pass == 0 ? glm::vec3(0.25f, 0.18f, 0.10f) : glm::vec3(1.0f);
+
+                        glUniformMatrix4fv(sh->GetUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(mm));
+                        glUniform3fv(sh->GetUniformLocation("uColor"), 1, glm::value_ptr(col));
+                        labelMesh[i]->RenderMesh();
+                    }
+                }
+
+                glUniform1i(sh->GetUniformLocation("unlit"), 0);
+                glEnable(GL_DEPTH_TEST);
+                glDisable(GL_BLEND);
+            }
 
         glUniform1i(sh->GetUniformLocation("useTexture"), 0);
         glBindTexture(GL_TEXTURE_2D, 0);
